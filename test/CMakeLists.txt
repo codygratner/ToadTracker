@@ -9,6 +9,7 @@ add_executable(toad_core_tests
     test_audio_render.cpp
     test_ui.cpp
     test_hal.cpp
+    test_hardware_hal.cpp
 )
 
 target_include_directories(toad_core_tests PRIVATE
@@ -20,6 +21,8 @@ target_include_directories(toad_core_tests PRIVATE
 target_link_libraries(toad_core_tests PRIVATE
     toad_core
     toad_hal_steamdeck
+    toad_hal_rpi
+    toad_hal_esp32
     Catch2::Catch2
 )
 

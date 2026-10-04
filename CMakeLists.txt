@@ -47,8 +47,9 @@ if(ENABLE_MODULE_IMPORT)
 endif()
 
 # 4. Target Platforms
-option(BUILD_RPI_TARGET "Build Raspberry Pi Linux ARM target (ALSA/DRM/SDL)" OFF)
+option(BUILD_RPI_TARGET "Build Raspberry Pi Linux ARM target (ALSA/DRM/SDL)" ON)
 option(BUILD_STEAMDECK_TARGET "Build Valve Steam Deck target (SteamOS/SDL/PipeWire)" ON)
+option(BUILD_ESP32_TARGET "Build dadamachines TBD-16 ESP32 target" ON)
 
 FetchContent_MakeAvailable(Catch2)
 if(BUILD_JUCE_TARGET)
@@ -65,6 +66,10 @@ endif()
 
 if(BUILD_STEAMDECK_TARGET)
     add_subdirectory(hal/steamdeck)
+endif()
+
+if(BUILD_ESP32_TARGET)
+    add_subdirectory(hal/esp32)
 endif()
 
 if(BUILD_JUCE_TARGET)
