@@ -1,5 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 #include <toad/fast_math.h>
+#include <toad/version.h>
 #include <cmath>
 
 TEST_CASE("FastMath: fastTanh and masterClip", "[fast_math]") {
@@ -149,4 +150,18 @@ TEST_CASE("FastMath: Architecture Invariants (ARM & x86_64 Compatibility)", "[fa
         REQUIRE(roundtrip == original_pattern);
     }
 }
+
+TEST_CASE("Version: Metadata and Numeric Invariants", "[version]") {
+    SECTION("Version 0.1.1 string and components") {
+        REQUIRE(toad::VERSION_MAJOR == 0);
+        REQUIRE(toad::VERSION_MINOR == 1);
+        REQUIRE(toad::VERSION_PATCH == 1);
+        REQUIRE(toad::VERSION_STRING == "0.1.1");
+        REQUIRE(toad::getVersionString() == "0.1.1");
+        REQUIRE(toad::getVersionNumber() == 0x000101);
+        REQUIRE(toad::APP_NAME == "ToadTracker");
+        REQUIRE(toad::CODENAME == "The Toad");
+    }
+}
+
 
