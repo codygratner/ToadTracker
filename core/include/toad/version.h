@@ -6,10 +6,10 @@
 namespace toad {
 
 constexpr uint32_t VERSION_MAJOR = 0;
-constexpr uint32_t VERSION_MINOR = 1;
-constexpr uint32_t VERSION_PATCH = 1;
+constexpr uint32_t VERSION_MINOR = 2;
+constexpr uint32_t VERSION_PATCH = 0;
 
-constexpr std::string_view VERSION_STRING = "0.1.1";
+constexpr std::string_view VERSION_STRING = "0.2.0";
 constexpr std::string_view APP_NAME = "ToadTracker";
 constexpr std::string_view CODENAME = "The Toad";
 

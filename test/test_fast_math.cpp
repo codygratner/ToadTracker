@@ -152,13 +152,13 @@ TEST_CASE("FastMath: Architecture Invariants (ARM & x86_64 Compatibility)", "[fa
 }
 
 TEST_CASE("Version: Metadata and Numeric Invariants", "[version]") {
-    SECTION("Version 0.1.1 string and components") {
+    SECTION("Version 0.2.0 string and components") {
         REQUIRE(toad::VERSION_MAJOR == 0);
-        REQUIRE(toad::VERSION_MINOR == 1);
-        REQUIRE(toad::VERSION_PATCH == 1);
-        REQUIRE(toad::VERSION_STRING == "0.1.1");
-        REQUIRE(toad::getVersionString() == "0.1.1");
-        REQUIRE(toad::getVersionNumber() == 0x000101);
+        REQUIRE(toad::VERSION_MINOR == 2);
+        REQUIRE(toad::VERSION_PATCH == 0);
+        REQUIRE(toad::VERSION_STRING == "0.2.0");
+        REQUIRE(toad::getVersionString() == "0.2.0");
+        REQUIRE(toad::getVersionNumber() == 0x000200);
         REQUIRE(toad::APP_NAME == "ToadTracker");
         REQUIRE(toad::CODENAME == "The Toad");
     }
