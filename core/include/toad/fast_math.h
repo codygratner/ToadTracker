@@ -7,6 +7,12 @@
 namespace toad {
 namespace FastMath {
 
+// Compile-time architectural invariants for bit-cast math and phase accumulators
+static_assert(std::endian::native == std::endian::little,
+    "ToadTracker FastMath requires little-endian architecture (guaranteed on x86_64, ARM, RISC-V, Xtensa)");
+static_assert(sizeof(float) == 4, "ToadTracker FastMath requires 32-bit IEEE-754 float");
+static_assert(sizeof(uint32_t) == 4, "ToadTracker FastMath requires 32-bit unsigned integers");
+
 // Branchless 32-bit Phase Accumulator Step Calculation
 inline uint32_t calculatePhaseIncrement(float frequencyHz, float sampleRateHz) {
     if (sampleRateHz <= 0.0f) return 0;

@@ -129,3 +129,24 @@ TEST_CASE("FastMath: Deterministic Sequencer Timing Subdivision", "[fast_math]")
         REQUIRE(halfTick == 500.0f);
     }
 }
+
+TEST_CASE("FastMath: Architecture Invariants (ARM & x86_64 Compatibility)", "[fast_math]") {
+    SECTION("Host platform is little-endian") {
+        REQUIRE(std::endian::native == std::endian::little);
+    }
+
+    SECTION("IEEE-754 32-bit floating point compliance") {
+        REQUIRE(sizeof(float) == 4);
+        REQUIRE(sizeof(uint32_t) == 4);
+        REQUIRE(std::numeric_limits<float>::is_iec559);
+    }
+
+    SECTION("bit_cast roundtrip preserves binary representation") {
+        uint32_t original_pattern = 0x3F800000; // 1.0f in IEEE 754
+        float as_float = std::bit_cast<float>(original_pattern);
+        REQUIRE(as_float == 1.0f);
+        uint32_t roundtrip = std::bit_cast<uint32_t>(as_float);
+        REQUIRE(roundtrip == original_pattern);
+    }
+}
+

@@ -5,6 +5,18 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Architecture & Cross-Compilation Support (ARM / Raspberry Pi / Steam Deck / Desktop)
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm|aarch64)")
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        message(STATUS "Targeting ARM: enabling NEON SIMD vectorization")
+        if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
+            add_compile_options(-march=armv8-a+simd)
+        elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
+            add_compile_options(-mfpu=neon -mfloat-abi=hard)
+        endif()
+    endif()
+endif()
+
 include(FetchContent)
 
 # 1. Catch2 for Headless Core Tests
@@ -34,6 +46,10 @@ if(ENABLE_MODULE_IMPORT)
     )
 endif()
 
+# 4. Target Platforms
+option(BUILD_RPI_TARGET "Build Raspberry Pi Linux ARM target (ALSA/DRM/SDL)" OFF)
+option(BUILD_STEAMDECK_TARGET "Build Valve Steam Deck target (SteamOS/SDL/PipeWire)" OFF)
+
 FetchContent_MakeAvailable(Catch2)
 if(BUILD_JUCE_TARGET)
     FetchContent_MakeAvailable(JUCE)
@@ -43,6 +59,14 @@ enable_testing()
 
 add_subdirectory(core)
 add_subdirectory(test)
+
+if(BUILD_RPI_TARGET)
+    add_subdirectory(hal/rpi)
+endif()
+
+if(BUILD_STEAMDECK_TARGET)
+    add_subdirectory(hal/steamdeck)
+endif()
 
 if(BUILD_JUCE_TARGET)
     add_subdirectory(hal/juce)

@@ -12,7 +12,7 @@
 
 \*\*Standard License:\*\* GNU General Public License v3.0 (GPLv3)  
 
-\*\*Target Environments:\*\* Embedded Hardware (dadamachines TBD-16 / CTAG TBD on ESP32-P4/S3), Desktop (Standalone \& VST3 Plugin via JUCE 8/9 on macOS/Linux/Windows), and Mobile (iOS/iPadOS, Android).
+\*\*Target Environments:\*\* Embedded Hardware (dadamachines TBD-16 / CTAG TBD on ESP32-P4/S3), Single-Board Computers (Raspberry Pi on Linux ARMv7/AArch64), Handheld Gaming Consoles (Valve Steam Deck on SteamOS x86_64), Desktop (Standalone \& VST3 Plugin via JUCE 8/9 on macOS/Linux/Windows), and Mobile (iOS/iPadOS, Android).
 
 
 
@@ -94,11 +94,39 @@ The tracker core maps all operations to an 8-button minimum controller standard,
 
 | \*\*VIEW\_MOD\*\* | `L2` + `L1`/`R1` | Dedicated Screen Jump | Fast toggle (SONG $\\longleftrightarrow$ PHRASE) |
 
-| \*\*SUB\_MOD\*\* | `R2` + `L1`/`R1` | Dedicated Sound Jump | Jump (SYNTH $\\longleftrightarrow$ TABLE $\\longleftrightarrow$ POOL) |
+| \*\*SUB\_MOD\*\* | `R2` + `L1`/`R1` | Dedicated Sound Jump | Jump (SYNTH $\longleftrightarrow$ TABLE $\longleftrightarrow$ POOL) |
 
 
 
-\---
+### 2.3 Single-Board Computer Specification (Raspberry Pi / Linux ARM)
+
+- \*\*Host Platform:\*\* Raspberry Pi 3 / 4 / 5 and Zero 2W running Linux (32-bit `armv7l` or 64-bit `aarch64`).
+- \*\*Vectorization & DSP:\*\* Compiler auto-vectorization and ARM NEON SIMD acceleration enabled for DSP voices and fast rational math. Flush-to-zero mode enabled on ARM FPU to eliminate denormal stalls.
+- \*\*Audio HAL:\*\* Direct low-latency ALSA PCM (`snd_pcm`), PipeWire, or JACK with fixed DMA period sizes (64..256 samples). Optional support for I2S DAC HATs (PCM5102, WM8960).
+- \*\*Display Outputs:\*\*
+  1. Direct SPI ST7789 (240×240 @ 60 Hz via `/dev/spidev` or DRM fbtft).
+  2. HDMI / DSI display via DRM/KMS or lightweight SDL2 canvas with 3× (720×720) or 4× (960×960) integer scaling.
+- \*\*Input Surface:\*\* Standard USB/Bluetooth gamepad, USB HID keyboard, or direct GPIO tactile switches matching the 8-button baseline.
+
+
+
+### 2.4 Handheld Gaming Console Specification (Valve Steam Deck)
+
+- \*\*Host Platform:\*\* Valve Steam Deck (SteamOS 3.x, Linux `x86_64`).
+- \*\*Display & Viewport:\*\* 1280×800 (16:10 native display). The native 240×240 pixel canvas is 3× integer-scaled (720×720) with side flanks housing realtime audio visualizers, oscilloscope, master VU meters, and table monitors.
+- \*\*Steam Deck Controller Mapping:\*\*
+  - \*\*Bumpers (`L1` / `R1`):\*\* `PAGE_PREV` / `PAGE_NEXT` (View navigation).
+  - \*\*D-Pad:\*\* `NAV_PAD` (Cursor navigation).
+  - \*\*Face Buttons (`A` / `B` / `X` / `Y`):\*\* `BTN_A` (Edit/Confirm), `BTN_B` (Back/Stop), `BTN_OPT` (Context/Sub-screen), `BTN_EDIT` (Audition note).
+  - \*\*System Buttons (`View` / `Menu`):\*\* `RECORD` (Arm recording / param lock), `TRANSPORT` (Play/Pause).
+  - \*\*Analog Triggers (`L2` / `R2`):\*\* `VIEW_MOD` (Quick Song/Phrase toggle), `SUB_MOD` (Quick Synth/Table toggle).
+  - \*\*Dual Trackpads:\*\* Configurable as high-precision rotary Jog Wheels (haptic click feedback) for rapid hex value scrubbing or pattern scrolling.
+  - \*\*Grip Buttons (`L4` / `L5` / `R4` / `R5`):\*\* Mapped to Octave Down/Up (-12 / +12 semitones) and Track Mute/Solo.
+- \*\*Audio Engine:\*\* Native PipeWire low-latency PRO Audio profile or direct ALSA hardware sink delivering sub-5ms buffer latency.
+
+
+
+---
 
 
 
@@ -1143,12 +1171,11 @@ ToadTracker/
 │   └── src/                    # Core implementations
 
 ├── hal/
-
-│   ├── common/                 # ITrackerHAL \& IMidiOutputSink interfaces
-
+│   ├── common/                 # ITrackerHAL & IMidiOutputSink interfaces
 │   ├── esp32/                  # Target: dadamachines TBD-16 (ESP-IDF/FreeRTOS)
-
-│   └── juce/                   # Target: Desktop VST3 / Standalone \& Gamepad
+│   ├── juce/                   # Target: Desktop VST3 / Standalone & Gamepad
+│   ├── rpi/                    # Target: Raspberry Pi (Linux ARM / ALSA / DRM / SPI)
+│   └── steamdeck/              # Target: Steam Deck (SteamOS x86_64 / Gamepad / PipeWire)
 
 ├── test/                       # Headless verification harness (Catch2)
 
@@ -1260,12 +1287,20 @@ endif()
 
 add\_subdirectory(core)
 
-add\_subdirectory(test)
+add_subdirectory(test)
 
-if(BUILD\_JUCE\_TARGET)
+option(BUILD_RPI_TARGET "Build Raspberry Pi Linux ARM target (ALSA/DRM/SDL)" OFF)
+if(BUILD_RPI_TARGET)
+    add_subdirectory(hal/rpi)
+endif()
 
-&#x20;   add\_subdirectory(hal/juce)
+option(BUILD_STEAMDECK_TARGET "Build Steam Deck target (SteamOS/SDL/PipeWire)" OFF)
+if(BUILD_STEAMDECK_TARGET)
+    add_subdirectory(hal/steamdeck)
+endif()
 
+if(BUILD_JUCE_TARGET)
+    add_subdirectory(hal/juce)
 endif()
 
 
@@ -1322,29 +1357,26 @@ endif()
 
 
 
-\### Phase 4: Desktop JUCE Harness \& Gamepad UI
+### Phase 4: Desktop, Steam Deck & Handheld Harness
+
+* Wrap engine inside `juce::AudioProcessor` and lightweight standalone Linux/SDL2 runner.
+* Implement virtual TBD-16 240×240 UI faceplate and gamepad input mapper (L1/R1, D-pad, ABXY).
+* Add Valve Steam Deck profile: 3× integer scaling (720×720) on 1280×800 display, haptic trackpad jog wheels, L4/L5/R4/R5 rear grips, and PipeWire low-latency audio.
+* Wire `IMidiOutputSink` to populate `juce::MidiBuffer` with sample-accurate timestamps.
 
 
 
-\* Wrap engine inside `juce::AudioProcessor` with sample-accurate `processBlock` slicing.
+### Phase 5: Hardware & Single-Board Computer Ports (ESP32 & Raspberry Pi)
 
-\* Implement virtual TBD-16 240×240 UI faceplate and gamepad input mapper (L1/R1, D-pad, ABXY).
-
-\* Wire `IMidiOutputSink` to populate `juce::MidiBuffer` with sample-accurate timestamps.
-
-
-
-\### Phase 5: Hardware Port (CTAG TBD / ESP32)
-
-
-
-\* Map I2S DMA buffers to Core 1 audio callback.
-
-\* Wire ST7789 SPI LCD and NeoPixel RMT drivers to Core 0 UI task.
-
-\* Map physical rotary encoders, D-pad, and illuminated tactile buttons.
-
-\* Connect hardware UART MIDI and USB-MIDI interfaces.
+* **ESP32-P4/S3 (CTAG TBD / TBD-16):**
+  - Map I2S DMA buffers to Core 1 audio callback.
+  - Wire ST7789 SPI LCD and NeoPixel RMT drivers to Core 0 UI task.
+  - Map physical rotary encoders, D-pad, illuminated tactile buttons, and UART MIDI.
+* **Raspberry Pi (Linux ARMv7 / AArch64):**
+  - Enable ARM NEON SIMD vectorization and flush-to-zero denormal prevention.
+  - Wire low-latency ALSA direct PCM audio backend.
+  - Support direct DRM/KMS framebuffer and SPI ST7789 displays.
+  - Map USB/Bluetooth gamepad and GPIO button inputs.
 
 
 
