@@ -151,6 +151,7 @@ public:
     const Song& getSong() const { return song_; }
 
     // Track State Query
+    TrackState& getTrackState(size_t track);
     const TrackState& getTrackState(size_t track) const;
 
     // Deterministic Timing & Slicing

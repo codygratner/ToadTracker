@@ -54,6 +54,14 @@ void Engine::loadSong(const Song& song) {
     stop();
 }
 
+TrackState& Engine::getTrackState(size_t track) {
+    static TrackState dummy;
+    if (track < MAX_TRACKS) {
+        return tracks_[track];
+    }
+    return dummy;
+}
+
 const TrackState& Engine::getTrackState(size_t track) const {
     static TrackState dummy;
     if (track < MAX_TRACKS) {

@@ -48,7 +48,7 @@ endif()
 
 # 4. Target Platforms
 option(BUILD_RPI_TARGET "Build Raspberry Pi Linux ARM target (ALSA/DRM/SDL)" OFF)
-option(BUILD_STEAMDECK_TARGET "Build Valve Steam Deck target (SteamOS/SDL/PipeWire)" OFF)
+option(BUILD_STEAMDECK_TARGET "Build Valve Steam Deck target (SteamOS/SDL/PipeWire)" ON)
 
 FetchContent_MakeAvailable(Catch2)
 if(BUILD_JUCE_TARGET)
@@ -58,8 +58,6 @@ endif()
 enable_testing()
 
 add_subdirectory(core)
-add_subdirectory(test)
-add_subdirectory(apps/cli)
 
 if(BUILD_RPI_TARGET)
     add_subdirectory(hal/rpi)
@@ -72,3 +70,6 @@ endif()
 if(BUILD_JUCE_TARGET)
     add_subdirectory(hal/juce)
 endif()
+
+add_subdirectory(apps/cli)
+add_subdirectory(test)

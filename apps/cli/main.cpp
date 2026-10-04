@@ -4,6 +4,8 @@
 #include <toad/types.h>
 #include <toad/fast_math.h>
 #include <toad/engine.h>
+#include <toad/ui_state.h>
+#include <toad/display_engine.h>
 
 int main(int argc, char* argv[]) {
     (void)argc;
@@ -23,12 +25,14 @@ int main(int argc, char* argv[]) {
     std::cout << "  Float Precision: 32-bit IEEE 754 (Verified)\n\n";
 
     std::cout << "[Static Memory Footprint (Zero-Allocation)]\n";
-    std::cout << "  sizeof(toad::Engine):     " << sizeof(toad::Engine) << " bytes\n";
-    std::cout << "  sizeof(toad::Song):       " << sizeof(toad::Song) << " bytes\n";
-    std::cout << "  sizeof(toad::Phrase):     " << sizeof(toad::Phrase) << " bytes\n";
-    std::cout << "  sizeof(toad::Chain):      " << sizeof(toad::Chain) << " bytes\n";
-    std::cout << "  sizeof(toad::Table):      " << sizeof(toad::Table) << " bytes\n";
-    std::cout << "  sizeof(toad::Instrument): " << sizeof(toad::Instrument) << " bytes\n\n";
+    std::cout << "  sizeof(toad::Engine):        " << sizeof(toad::Engine) << " bytes\n";
+    std::cout << "  sizeof(toad::Song):          " << sizeof(toad::Song) << " bytes\n";
+    std::cout << "  sizeof(toad::Phrase):        " << sizeof(toad::Phrase) << " bytes\n";
+    std::cout << "  sizeof(toad::Chain):         " << sizeof(toad::Chain) << " bytes\n";
+    std::cout << "  sizeof(toad::Table):         " << sizeof(toad::Table) << " bytes\n";
+    std::cout << "  sizeof(toad::Instrument):    " << sizeof(toad::Instrument) << " bytes\n";
+    std::cout << "  sizeof(toad::UIState):       " << sizeof(toad::UIState) << " bytes\n";
+    std::cout << "  sizeof(toad::DisplayEngine): " << sizeof(toad::DisplayEngine) << " bytes\n\n";
 
     std::cout << "[FastMath Engine Self-Check]\n";
     float sampleRate = 44100.0f;

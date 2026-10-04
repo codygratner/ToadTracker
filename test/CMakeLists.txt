@@ -7,10 +7,19 @@ add_executable(toad_core_tests
     test_synth.cpp
     test_filter.cpp
     test_audio_render.cpp
+    test_ui.cpp
+    test_hal.cpp
+)
+
+target_include_directories(toad_core_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/core/include
+    ${CMAKE_SOURCE_DIR}/hal
 )
 
 target_link_libraries(toad_core_tests PRIVATE
     toad_core
+    toad_hal_steamdeck
     Catch2::Catch2
 )
 
