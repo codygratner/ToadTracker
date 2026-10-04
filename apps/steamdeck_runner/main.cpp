@@ -22,6 +22,7 @@
 #include "../common/win32_gamepad.h"
 
 #include <vector>
+#include <memory>
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -611,11 +612,11 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     (void)hPrevInstance;
     (void)pCmdLine;
 
-    toad::SteamDeckRunnerApp app;
-    if (!app.initialize(hInstance, nCmdShow)) {
+    auto app = std::make_unique<toad::SteamDeckRunnerApp>();
+    if (!app->initialize(hInstance, nCmdShow)) {
         MessageBoxW(nullptr, L"Failed to initialize Steam Deck Runner", L"ToadTracker Error", MB_ICONERROR | MB_OK);
         return 1;
     }
 
-    return app.run();
+    return app->run();
 }

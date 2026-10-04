@@ -585,11 +585,11 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     (void)hPrevInstance;
     (void)pCmdLine;
 
-    toad::TBD16EmulatorApp app;
-    if (!app.initialize(hInstance, nCmdShow)) {
+    auto app = std::make_unique<toad::TBD16EmulatorApp>();
+    if (!app->initialize(hInstance, nCmdShow)) {
         MessageBoxW(nullptr, L"Failed to initialize TBD-16 Emulator", L"ToadTracker Error", MB_ICONERROR | MB_OK);
         return 1;
     }
 
-    return app.run();
+    return app->run();
 }

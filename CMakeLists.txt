@@ -79,6 +79,7 @@ endif()
 add_subdirectory(apps/cli)
 
 if(WIN32)
+    add_subdirectory(apps/desktop)
     add_subdirectory(apps/tbd16_emulator)
     add_subdirectory(apps/steamdeck_runner)
 endif()
