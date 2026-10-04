@@ -21,6 +21,11 @@ This file indexes active roadmap items for the automated task runner (`execute-t
 - **Scope:** `core`, `apps/cli`, `apps/desktop`
 - **Summary:** Deterministic, headless offline audio renderer that bounces full songs or chains to 16-bit / 44.1 kHz stereo RIFF WAV files faster than real-time. Accessible via CLI (`toad_cli export`) and desktop UI (`Ctrl+E` / Project screen).
 
+### Item 4: BACKLOG-04 - Instantaneous Hold-to-View Navigation Modal
+- **Status:** Ready
+- **Scope:** `core`, `apps/desktop`, `apps/tbd16_emulator`, `apps/steamdeck_runner`
+- **Summary:** Make the 2D Navigation Map modal hold-to-view: pops up immediately on Left-Shift / Gamepad Left Trigger press, navigates with D-Pad/Arrows, and drops instantly on release with zero delay (eliminating the lingering 60-frame countdown).
+
 ---
 
 ## Reminders & Operational Guardrails

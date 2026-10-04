@@ -11,6 +11,7 @@ This document tracks prioritized feature specifications, architectural requireme
 | **P1** | **BACKLOG-01** | [Dedicated Project Screen (`VIEW_PROJECT`) & File Operations](#backlog-01-dedicated-project-screen-view_project--file-operations) | `core`, `desktop`, `hal` | **Ready** |
 | **P2** | **BACKLOG-02** | [Dedicated Instrument Screen (`VIEW_INSTRUMENT`) & Parameter Sliders](#backlog-02-dedicated-instrument-screen-view_instrument--parameter-sliders) | `core`, `desktop`, `hal` | **Ready** |
 | **P3** | **BACKLOG-03** | [Offline Song WAV Exporter (`.wav`)](#backlog-03-offline-song-wav-exporter-wav) | `core`, `desktop`, `cli` | **Ready** |
+| **P1** | **BACKLOG-04** | [Instantaneous Hold-to-View Navigation Modal](#backlog-04-instantaneous-hold-to-view-navigation-modal) | `core`, `desktop`, `hal` | **Ready** |
 
 ---
 
@@ -125,3 +126,33 @@ Musicians need to bounce their songs or phrases directly to audio files without 
 - [ ] CLI export option added to `apps/cli/main.cpp`.
 - [ ] Desktop shortcut `Ctrl + E` triggers export with status bar feedback.
 - [ ] Catch2 unit tests in `test/test_wav_exporter.cpp` verifying generated WAV header integrity, PCM sample ranges, and non-clipping via `fastTanh`.
+
+---
+
+### BACKLOG-04: Instantaneous Hold-to-View Navigation Modal
+
+#### 1. Overview & Objective
+Currently, navigating the 2D Screen Navigation Map triggers an artificial 60-frame countdown (`nav_hud_timer = 60`, 1.0 second) in `navigate2D`, causing the navigation modal to hang around for a second after navigation is completed or the modifier is released. Furthermore, pressing Left-Shift alone does not display the modal until an arrow key is pressed. This task converts the navigation modal into an authentic hold-to-view overlay: it pops up immediately when Left-Shift (or Gamepad Left Trigger / `VIEW_MOD`) is pressed down, navigates with D-Pad/Arrows, and drops instantly with zero delay when released.
+
+#### 2. Functional Requirements
+- **Immediate Pop-up on Modifier Down:**
+  - **Keyboard:** Pressing Left-Shift (`VK_LSHIFT`, `VK_SHIFT`) immediately sets `is_nav_mod_held = true`, displaying the 3x3 Screen Map overlay.
+  - **Gamepad:** Pulling Left Trigger (`modView`) immediately sets `is_nav_mod_held = true`.
+- **Fluid D-Pad / Arrow Navigation:**
+  - While `is_nav_mod_held` is true, Arrow Keys (Keyboard) or D-Pad (Gamepad) invoke `navigate2D(dx, dy, song)`.
+  - The modal stays visible, and the active screen highlight moves in real time.
+  - `navigate2D` no longer schedules a lingering timer (`nav_hud_timer = 0`).
+- **Instantaneous Drop on Modifier Release:**
+  - Releasing Left-Shift (`WM_KEYUP` with `VK_SHIFT`/`VK_LSHIFT`) immediately sets `is_nav_mod_held = false` and `nav_hud_timer = 0`, dropping the modal with zero delay.
+  - Releasing Gamepad Left Trigger immediately sets `is_nav_mod_held = false` and `nav_hud_timer = 0`.
+  - Window focus loss (`WM_KILLFOCUS`) automatically drops the modal.
+- **Cross-Platform Consistency:**
+  - Standalone Desktop (`toad_tracker.exe`), TBD-16 Emulator (`toad_tbd16_emulator.exe`), and Steam Deck Runner (`toad_steamdeck_runner.exe`).
+
+#### 3. Acceptance Criteria
+- [ ] Left-Shift press down immediately displays navigation modal.
+- [ ] Arrow keys / D-pad navigate while held, updating active view highlight.
+- [ ] Releasing Left-Shift drops the modal immediately (zero frames delay).
+- [ ] `navigate2D` timer artifact eliminated (`nav_hud_timer = 0`).
+- [ ] Automated tests in `test/test_navigation_map.cpp` verify modifier hold/release visibility and zero timer lag.
+
