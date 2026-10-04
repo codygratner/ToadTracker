@@ -4,6 +4,10 @@
 #include "fast_math.h"
 #include "scale.h"
 #include "pool.h"
+#include "filter.h"
+#include "synth_voice.h"
+#include "wavetable_voice.h"
+#include "sf2_player.h"
 
 #include <cstdint>
 #include <cstddef>
@@ -165,6 +169,17 @@ public:
     void triggerStep(size_t trackIndex, uint32_t sampleOffset = 0);
     void processTick(uint32_t sampleOffset = 0);
 
+    // Audio Synthesis & Voice Rendering (Zero-Allocation)
+    void renderVoices(float* outLeft, float* outRight, size_t numFrames);
+    void renderVoicesInterleaved(float* outInterleavedStereo, size_t numFrames);
+    void renderBlockDeterministic(float* outInterleavedStereo, size_t totalFrames);
+    void renderBlockDeterministic(float* outLeft, float* outRight, size_t totalFrames);
+
+    // Voice Accessors
+    const SynthVoice& getSynthVoice(size_t track) const;
+    const WavetableVoice& getWavetableVoice(size_t track) const;
+    const SF2Voice& getSF2Voice(size_t track) const;
+
 private:
     void updateTimingCoefficients();
     void applyTableCommand(TrackState& track, TrackerCommand cmd, uint8_t val, uint32_t sampleOffset);
@@ -184,6 +199,11 @@ private:
     // Tracks
     std::array<TrackState, MAX_TRACKS> tracks_{};
 
+    // DSP Voice Engines (Zero-allocation per-track voices)
+    std::array<SynthVoice, MAX_TRACKS> synthVoices_{};
+    std::array<WavetableVoice, MAX_TRACKS> wavetableVoices_{};
+    std::array<SF2Voice, MAX_TRACKS> sf2Voices_{};
+
     // Timing
     float   sampleRate_{44100.0f};
     float   bpm_{120.0f};
@@ -201,3 +221,4 @@ private:
 };
 
 } // namespace toad
+

@@ -4,6 +4,9 @@ add_executable(toad_core_tests
     test_tables.cpp
     test_scale_pool.cpp
     test_sequencer.cpp
+    test_synth.cpp
+    test_filter.cpp
+    test_audio_render.cpp
 )
 
 target_link_libraries(toad_core_tests PRIVATE

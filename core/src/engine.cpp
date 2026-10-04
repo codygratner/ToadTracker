@@ -9,12 +9,18 @@ Engine::Engine() {
     for (auto& track : tracks_) {
         track.reset();
     }
+    for (auto& v : synthVoices_) v.setSampleRate(sampleRate_);
+    for (auto& v : wavetableVoices_) v.setSampleRate(sampleRate_);
+    for (auto& v : sf2Voices_) v.setSampleRate(sampleRate_);
 }
 
 void Engine::setSampleRate(float sampleRateHz) {
     if (sampleRateHz <= 0.0f) return;
     sampleRate_ = sampleRateHz;
     updateTimingCoefficients();
+    for (auto& v : synthVoices_) v.setSampleRate(sampleRate_);
+    for (auto& v : wavetableVoices_) v.setSampleRate(sampleRate_);
+    for (auto& v : sf2Voices_) v.setSampleRate(sampleRate_);
 }
 
 void Engine::setBpm(float bpm) {
@@ -114,6 +120,9 @@ void Engine::stop() {
     for (auto& track : tracks_) {
         track.reset();
     }
+    for (auto& v : synthVoices_) v.reset();
+    for (auto& v : wavetableVoices_) v.reset();
+    for (auto& v : sf2Voices_) v.reset();
 
     TrackerEvent ev;
     ev.type = TrackerEvent::EVENT_TRANSPORT_CHANGE;
@@ -278,6 +287,27 @@ void Engine::evaluateTableModulation(TrackState& track, uint32_t sampleOffset) {
     if (eff_vol < 0.0f) eff_vol = 0.0f;
     if (eff_vol > 255.0f) eff_vol = 255.0f;
     track.effective_volume = static_cast<uint8_t>(eff_vol);
+
+    // Update DSP Voice Modulation Parameters
+    size_t trackIdx = static_cast<size_t>(&track - &tracks_[0]);
+    if (trackIdx < MAX_TRACKS) {
+        const Instrument& inst = song_.instruments[track.instrument_id < TOTAL_INSTRUMENTS ? track.instrument_id : 0];
+        if (inst.type == INST_TYPE_INTERNAL_SYNTH) {
+            synthVoices_[trackIdx].setPitch(static_cast<float>(track.effective_note));
+            synthVoices_[trackIdx].setFilterParameters(inst.filter_type, track.filter_cutoff, track.filter_resonance, track.filter_drive);
+            synthVoices_[trackIdx].setPulseWidth(track.pulse_width);
+            synthVoices_[trackIdx].setFoldDrive(track.wavefolder_drive);
+            synthVoices_[trackIdx].setDisperser(track.disperser_freq);
+        } else if (inst.type == INST_TYPE_WAVETABLE) {
+            wavetableVoices_[trackIdx].setPitch(static_cast<float>(track.effective_note));
+            wavetableVoices_[trackIdx].setFilterParameters(inst.filter_type, track.filter_cutoff, track.filter_resonance, track.filter_drive);
+            wavetableVoices_[trackIdx].setPosition(track.wavetable_position);
+            wavetableVoices_[trackIdx].setWarp(inst.wavetable.warp_mode, track.wavetable_warp);
+        } else if (inst.type == INST_TYPE_SF2_MULTISAMPLE) {
+            sf2Voices_[trackIdx].setPitch(static_cast<float>(track.effective_note));
+            sf2Voices_[trackIdx].setFilterParameters(inst.filter_type, track.filter_cutoff, track.filter_resonance, track.filter_drive);
+        }
+    }
 }
 
 void Engine::triggerStep(size_t trackIndex, uint32_t sampleOffset) {
@@ -336,10 +366,19 @@ void Engine::triggerStep(size_t trackIndex, uint32_t sampleOffset) {
         track.primary_table.trigger(inst.table_id, song_.tables[inst.table_id].speed);
     }
 
-    // 6. Execute Row 0 Table Modulation immediately on Step Trigger
+    // 6. Evaluate Row 0 of triggered tables immediately on the note trigger
     evaluateTableModulation(track, sampleOffset);
 
-    // 7. Push NOTE_ON Event
+    // 7. Dispatch Note to Native DSP Voice Engine
+    if (inst.type == INST_TYPE_INTERNAL_SYNTH) {
+        synthVoices_[trackIndex].noteOn(static_cast<uint8_t>(track.effective_note), track.effective_volume, inst.synth, inst);
+    } else if (inst.type == INST_TYPE_WAVETABLE) {
+        wavetableVoices_[trackIndex].noteOn(static_cast<uint8_t>(track.effective_note), track.effective_volume, inst.wavetable, inst);
+    } else if (inst.type == INST_TYPE_SF2_MULTISAMPLE) {
+        sf2Voices_[trackIndex].noteOn(static_cast<uint8_t>(track.effective_note), track.effective_volume, inst);
+    }
+
+    // 8. Push NOTE_ON Event
     TrackerEvent ev;
     ev.type = TrackerEvent::EVENT_NOTE_ON;
     ev.track = static_cast<uint8_t>(trackIndex);
@@ -471,4 +510,125 @@ void Engine::processBlock(size_t totalSamples) {
     }
 }
 
+void Engine::renderVoices(float* outLeft, float* outRight, size_t numFrames) {
+    if (!outLeft || !outRight || numFrames == 0) return;
+
+    for (size_t i = 0; i < numFrames; ++i) {
+        float mix = 0.0f;
+        for (size_t t = 0; t < MAX_TRACKS; ++t) {
+            const auto& track = tracks_[t];
+            if (track.voice_active) {
+                const Instrument& inst = song_.instruments[track.instrument_id < TOTAL_INSTRUMENTS ? track.instrument_id : 0];
+                float sample = 0.0f;
+                switch (inst.type) {
+                    case INST_TYPE_INTERNAL_SYNTH:  sample = synthVoices_[t].process(); break;
+                    case INST_TYPE_WAVETABLE:       sample = wavetableVoices_[t].process(); break;
+                    case INST_TYPE_SF2_MULTISAMPLE: sample = sf2Voices_[t].process(); break;
+                    default: break;
+                }
+                mix += sample * (static_cast<float>(track.effective_volume) / 255.0f);
+            }
+        }
+        // Master Output Protection: zero-latency branchless fastTanh / masterClip
+        float safeSample = FastMath::masterClip(mix);
+        outLeft[i] = safeSample;
+        outRight[i] = safeSample;
+    }
+}
+
+void Engine::renderVoicesInterleaved(float* outInterleavedStereo, size_t numFrames) {
+    if (!outInterleavedStereo || numFrames == 0) return;
+
+    for (size_t i = 0; i < numFrames; ++i) {
+        float mix = 0.0f;
+        for (size_t t = 0; t < MAX_TRACKS; ++t) {
+            const auto& track = tracks_[t];
+            if (track.voice_active) {
+                const Instrument& inst = song_.instruments[track.instrument_id < TOTAL_INSTRUMENTS ? track.instrument_id : 0];
+                float sample = 0.0f;
+                switch (inst.type) {
+                    case INST_TYPE_INTERNAL_SYNTH:  sample = synthVoices_[t].process(); break;
+                    case INST_TYPE_WAVETABLE:       sample = wavetableVoices_[t].process(); break;
+                    case INST_TYPE_SF2_MULTISAMPLE: sample = sf2Voices_[t].process(); break;
+                    default: break;
+                }
+                mix += sample * (static_cast<float>(track.effective_volume) / 255.0f);
+            }
+        }
+        float safeSample = FastMath::masterClip(mix);
+        outInterleavedStereo[2 * i] = safeSample;
+        outInterleavedStereo[2 * i + 1] = safeSample;
+    }
+}
+
+void Engine::renderBlockDeterministic(float* outInterleavedStereo, size_t totalFrames) {
+    if (!outInterleavedStereo || totalFrames == 0) return;
+
+    if (transportState_ != TRANSPORT_PLAYING) {
+        std::fill(outInterleavedStereo, outInterleavedStereo + totalFrames * 2, 0.0f);
+        return;
+    }
+
+    size_t samplesProcessed = 0;
+
+    while (samplesProcessed < totalFrames) {
+        size_t samplesUntilTick = getSamplesUntilNextTick();
+        size_t slice = (totalFrames - samplesProcessed < samplesUntilTick)
+                       ? (totalFrames - samplesProcessed)
+                       : samplesUntilTick;
+
+        renderVoicesInterleaved(outInterleavedStereo + samplesProcessed * 2, slice);
+
+        samplesProcessed += slice;
+        advanceSampleClock(slice);
+
+        if (samplesUntilTick_ <= 0.0f) {
+            processTick(static_cast<uint32_t>(samplesProcessed));
+            samplesUntilTick_ += samplesPerTick_;
+        }
+    }
+}
+
+void Engine::renderBlockDeterministic(float* outLeft, float* outRight, size_t totalFrames) {
+    if (!outLeft || !outRight || totalFrames == 0) return;
+
+    if (transportState_ != TRANSPORT_PLAYING) {
+        std::fill(outLeft, outLeft + totalFrames, 0.0f);
+        std::fill(outRight, outRight + totalFrames, 0.0f);
+        return;
+    }
+
+    size_t samplesProcessed = 0;
+
+    while (samplesProcessed < totalFrames) {
+        size_t samplesUntilTick = getSamplesUntilNextTick();
+        size_t slice = (totalFrames - samplesProcessed < samplesUntilTick)
+                       ? (totalFrames - samplesProcessed)
+                       : samplesUntilTick;
+
+        renderVoices(outLeft + samplesProcessed, outRight + samplesProcessed, slice);
+
+        samplesProcessed += slice;
+        advanceSampleClock(slice);
+
+        if (samplesUntilTick_ <= 0.0f) {
+            processTick(static_cast<uint32_t>(samplesProcessed));
+            samplesUntilTick_ += samplesPerTick_;
+        }
+    }
+}
+
+const SynthVoice& Engine::getSynthVoice(size_t track) const {
+    return synthVoices_[track < MAX_TRACKS ? track : 0];
+}
+
+const WavetableVoice& Engine::getWavetableVoice(size_t track) const {
+    return wavetableVoices_[track < MAX_TRACKS ? track : 0];
+}
+
+const SF2Voice& Engine::getSF2Voice(size_t track) const {
+    return sf2Voices_[track < MAX_TRACKS ? track : 0];
+}
+
 } // namespace toad
+
