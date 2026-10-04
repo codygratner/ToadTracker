@@ -19,6 +19,7 @@ enum TrackerView : uint8_t {
     VIEW_INSTRUMENT,
     VIEW_SYNTH,
     VIEW_PROJECT,
+    VIEW_SETTINGS,
     VIEW_COUNT
 };
 
@@ -60,6 +61,10 @@ public:
             track_soloed[i] = false;
             vu_levels[i] = 0.0f;
         }
+
+        is_remapping = false;
+        remap_action_index = 0;
+        settings_scroll_row = 0;
     }
 
     // --- NAVIGATION HIERARCHY ---
@@ -127,6 +132,11 @@ public:
                 cursor_col = 0;
                 break;
             case VIEW_PROJECT:
+                current_view = VIEW_SETTINGS;
+                cursor_row = 0;
+                cursor_col = 0;
+                break;
+            case VIEW_SETTINGS:
                 current_view = VIEW_SONG;
                 cursor_row = selected_song_row;
                 cursor_col = active_track;
@@ -139,6 +149,16 @@ public:
 
     void pagePrev() {
         switch (current_view) {
+            case VIEW_SETTINGS:
+                current_view = VIEW_PROJECT;
+                cursor_row = 0;
+                cursor_col = 0;
+                break;
+            case VIEW_PROJECT:
+                current_view = VIEW_SYNTH;
+                cursor_row = 0;
+                cursor_col = 0;
+                break;
             case VIEW_TABLE:
             case VIEW_SYNTH:
                 current_view = VIEW_INSTRUMENT;
@@ -156,11 +176,6 @@ public:
                 cursor_col = 0;
                 break;
             case VIEW_CHAIN:
-                current_view = VIEW_SONG;
-                cursor_row = selected_song_row;
-                cursor_col = active_track;
-                break;
-            case VIEW_PROJECT:
                 current_view = VIEW_SONG;
                 cursor_row = selected_song_row;
                 cursor_col = active_track;
@@ -238,6 +253,12 @@ public:
             case VIEW_PROJECT:
                 cursor_row = std::min(cursor_row, 5);
                 cursor_col = 0;
+                break;
+
+            case VIEW_SETTINGS:
+                cursor_row = std::min(cursor_row, 17);
+                cursor_col = 0;
+                remap_action_index = cursor_row;
                 break;
 
             default:
@@ -563,6 +584,10 @@ public:
     bool track_muted[MAX_TRACKS]{};
     bool track_soloed[MAX_TRACKS]{};
     float vu_levels[MAX_TRACKS]{};
+
+    bool is_remapping{false};
+    int  remap_action_index{0};
+    int  settings_scroll_row{0};
 };
 
 } // namespace toad

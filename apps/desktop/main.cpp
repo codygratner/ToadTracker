@@ -16,6 +16,7 @@
 #include <toad/display_engine.h>
 #include <toad/serializer.h>
 #include <toad/auto_sampler.h>
+#include <toad/keymap.h>
 
 #include "../common/demo_song.h"
 #include "../common/win32_audio.h"
@@ -58,6 +59,9 @@ public:
     DesktopTrackerApp() {
         scale_ = 3; // Default 3x (720x720 canvas)
         updateWindowSize();
+        if (!inputMap_.loadFromFile("toad_settings.dat")) {
+            inputMap_.loadM8RunPreset();
+        }
     }
 
     bool initialize(HINSTANCE hInstance, int nCmdShow) {
@@ -259,8 +263,8 @@ private:
             }
         }
 
-        // Direct View Hotkeys (F1..F7)
-        if (vk >= VK_F1 && vk <= VK_F7) {
+        // Direct View Hotkeys (F1..F8)
+        if (vk >= VK_F1 && vk <= VK_F8) {
             TrackerView target = static_cast<TrackerView>(vk - VK_F1);
             if (target < VIEW_COUNT) {
                 uiState_.current_view = target;
@@ -277,122 +281,117 @@ private:
             return;
         }
 
-        // Standard Navigation Keys
-        InputEvent ev{};
-        ev.pressed = true;
-
-        switch (vk) {
-            case VK_UP:    ev.input = INPUT_UP; break;
-            case VK_DOWN:  ev.input = INPUT_DOWN; break;
-            case VK_LEFT:  ev.input = INPUT_LEFT; break;
-            case VK_RIGHT: ev.input = INPUT_RIGHT; break;
-
-            case VK_PRIOR: // Page Up -> Prev View
-                ev.input = INPUT_PAGE_PREV; break;
-            case VK_NEXT:  // Page Down -> Next View
-                ev.input = INPUT_PAGE_NEXT; break;
-
-            case VK_RETURN: // Enter -> Sub-View / Confirm / Inc
-                ev.input = INPUT_BTN_A; break;
-            case VK_BACK:   // Backspace -> Delete Note or Back View
-            case VK_ESCAPE: // Esc -> Back View
-                ev.input = INPUT_BTN_B; break;
-
-            case VK_SPACE: // Space -> Transport Play/Stop
-                ev.input = INPUT_TRANSPORT; break;
-
-            case VK_TAB:   // Tab -> Audition Note
-                ev.input = INPUT_BTN_EDIT; break;
-
-            case VK_OEM_4: // '[' -> Value dec
-                ev.input = INPUT_JOG_CCW; ev.jog_delta = -1; break;
-            case VK_OEM_6: // ']' -> Value inc
-                ev.input = INPUT_JOG_CW;  ev.jog_delta = 1;  break;
-
-            case VK_OEM_MINUS: // '-' -> Octave Down
-                if (uiState_.octave_offset > -4) uiState_.octave_offset--;
-                return;
-            case VK_OEM_PLUS:  // '=' -> Octave Up
-                if (uiState_.octave_offset < 4) uiState_.octave_offset++;
-                return;
-
-            default:
-                // Check Musical Typing Keyboard (Note Entry)
-                if (uiState_.current_view == VIEW_PHRASE) {
-                    int note = getMusicalTypingNote(vk);
-                    if (note >= 0) {
-                        int effectiveNote = note + (uiState_.octave_offset * 12);
-                        effectiveNote = std::max(0, std::min(127, effectiveNote));
-
-                        auto& ph = song_.phrases[uiState_.selected_phrase_id < TOTAL_PHRASES ? uiState_.selected_phrase_id : 0];
-                        auto& step = ph.steps[uiState_.cursor_row < 16 ? uiState_.cursor_row : 0];
-                        step.note = static_cast<uint8_t>(effectiveNote);
-                        step.instrument = uiState_.selected_instrument_id;
-                        if (step.volume == 0) step.volume = 0xFF;
-
-                        // Audition Note immediately
-                        engine_.getTrackState(uiState_.active_track).raw_note = step.note;
-                        engine_.getTrackState(uiState_.active_track).effective_note = static_cast<int8_t>(step.note);
-                        engine_.loadSong(song_);
-
-                        // Auto-advance cursor step
-                        if (uiState_.cursor_row < 15) {
-                            uiState_.cursor_row++;
-                            uiState_.selected_phrase_step = static_cast<uint8_t>(uiState_.cursor_row);
-                        }
-                        return;
-                    }
-                }
-
-                // Check Hex Value Input (0..9, A..F) for Numeric columns
-                if (vk >= '0' && vk <= '9') {
-                    int hexDigit = vk - '0';
-                    applyHexInput(hexDigit);
+        // --- 1. SETTINGS VIEW LOGIC & REMAPPING ---
+        if (uiState_.current_view == VIEW_SETTINGS) {
+            if (uiState_.is_remapping) {
+                if (vk == VK_ESCAPE) {
+                    uiState_.is_remapping = false;
+                    setStatusMessage("REMAP CANCELLED");
                     return;
                 }
-                if (vk >= 'A' && vk <= 'F') {
-                    int hexDigit = 10 + (vk - 'A');
-                    applyHexInput(hexDigit);
-                    return;
-                }
+                inputMap_.remapPrimaryKey(uiState_.remap_action_index, vk);
+                inputMap_.saveToFile("toad_settings.dat");
+                uiState_.is_remapping = false;
+                setStatusMessage("KEY REBOUND & SAVED");
                 return;
+            }
+
+            // Quick Preset Selection (Keys 1..4 on Settings Page)
+            if (vk == '1') {
+                inputMap_.loadM8RunPreset();
+                inputMap_.saveToFile("toad_settings.dat");
+                setStatusMessage("PRESET: M8.RUN (A/S:PAGE L/R, Z/X:EDIT/BACK)");
+                return;
+            } else if (vk == '2') {
+                inputMap_.loadDesktopPreset();
+                inputMap_.saveToFile("toad_settings.dat");
+                setStatusMessage("PRESET: DESKTOP (ARROWS/ENTER/ESC)");
+                return;
+            } else if (vk == '3') {
+                inputMap_.loadWasdPreset();
+                inputMap_.saveToFile("toad_settings.dat");
+                setStatusMessage("PRESET: WASD (WASD/JK/SPACE)");
+                return;
+            } else if (vk == '4') {
+                inputMap_.loadVimPreset();
+                inputMap_.saveToFile("toad_settings.dat");
+                setStatusMessage("PRESET: VIM (HJKL/ZX/SPACE)");
+                return;
+            }
+
+            // Start Remap on Enter or primary action button
+            if (vk == VK_RETURN || inputMap_.resolveKey(vk) == INPUT_BTN_A) {
+                uiState_.is_remapping = true;
+                uiState_.remap_action_index = uiState_.cursor_row;
+                setStatusMessage("PRESS ANY KEY TO BIND (ESC:CANCEL)");
+                return;
+            }
         }
 
-        dispatchInput(ev);
-    }
+        // --- 2. OCTAVE SHIFTING (',' / '<' and '.' / '>') ---
+        if (InputMap::isOctaveDownKey(vk)) {
+            if (uiState_.octave_offset > -4) {
+                uiState_.octave_offset--;
+                setStatusMessage("OCTAVE DOWN");
+            }
+            return;
+        }
+        if (InputMap::isOctaveUpKey(vk)) {
+            if (uiState_.octave_offset < 4) {
+                uiState_.octave_offset++;
+                setStatusMessage("OCTAVE UP");
+            }
+            return;
+        }
 
-    int getMusicalTypingNote(uint32_t vk) {
-        // Base octave 4 (Middle C = 60)
-        switch (vk) {
-            // Lower octave (C-4 .. B-4)
-            case 'Z': return 60; // C-4
-            case 'S': return 61; // C#4
-            case 'X': return 62; // D-4
-            case 'D': return 63; // D#4
-            case 'C': return 64; // E-4
-            case 'V': return 65; // F-4
-            case 'G': return 66; // F#4
-            case 'B': return 67; // G-4
-            case 'H': return 68; // G#4
-            case 'N': return 69; // A-4
-            case 'J': return 70; // A#4
-            case 'M': return 71; // B-4
+        // --- 3. VIRTUAL PIANO KEYBOARD (Q..], 2..=) ---
+        int pianoNote = InputMap::resolveVirtualPianoNote(vk, uiState_.octave_offset);
+        if (pianoNote >= 0) {
+            if (uiState_.current_view == VIEW_PHRASE && uiState_.cursor_col == 0) {
+                auto& ph = song_.phrases[uiState_.selected_phrase_id < TOTAL_PHRASES ? uiState_.selected_phrase_id : 0];
+                auto& step = ph.steps[uiState_.cursor_row < 16 ? uiState_.cursor_row : 0];
+                step.note = static_cast<uint8_t>(pianoNote);
+                step.instrument = uiState_.selected_instrument_id;
+                if (step.volume == 0) step.volume = 0xFF;
 
-            // Upper octave (C-5 .. B-5)
-            case 'Q': return 72; // C-5
-            case '2': return 73; // C#5
-            case 'W': return 74; // D-5
-            case '3': return 75; // D#5
-            case 'E': return 76; // E-5
-            case 'R': return 77; // F-5
-            case '5': return 78; // F#5
-            case 'T': return 79; // G-5
-            case '6': return 80; // G#5
-            case 'Y': return 81; // A-5
-            case '7': return 82; // A#5
-            case 'U': return 83; // B-5
+                // Audition Note immediately
+                engine_.getTrackState(uiState_.active_track).raw_note = step.note;
+                engine_.getTrackState(uiState_.active_track).effective_note = static_cast<int8_t>(step.note);
+                engine_.loadSong(song_);
 
-            default: return -1;
+                // Auto-advance cursor step
+                if (uiState_.cursor_row < 15) {
+                    uiState_.cursor_row++;
+                    uiState_.selected_phrase_step = static_cast<uint8_t>(uiState_.cursor_row);
+                }
+            } else {
+                // Live Audition on Active Track in all views
+                engine_.getTrackState(uiState_.active_track).raw_note = static_cast<uint8_t>(pianoNote);
+                engine_.getTrackState(uiState_.active_track).effective_note = static_cast<int8_t>(pianoNote);
+                engine_.loadSong(song_);
+            }
+            return;
+        }
+
+        // --- 4. CONFIGURABLE INPUT MAPPING TABLE ---
+        LogicalInput mappedAction = inputMap_.resolveKey(vk);
+        if (mappedAction != INPUT_NONE) {
+            InputEvent ev{};
+            ev.input = mappedAction;
+            ev.pressed = true;
+            dispatchInput(ev);
+            return;
+        }
+
+        // --- 5. NUMERIC / HEX COLUMN INPUT FALLBACK ---
+        // Used in Song, Chain, or Phrase (Inst, Vol, FX columns)
+        if (vk >= '0' && vk <= '9') {
+            applyHexInput(static_cast<int>(vk - '0'));
+            return;
+        }
+        if (vk >= 'A' && vk <= 'F') {
+            applyHexInput(static_cast<int>(10 + (vk - 'A')));
+            return;
         }
     }
 
@@ -469,7 +468,7 @@ private:
         renderTopBar();
 
         // 2. Render Core 240x240 Tracker Canvas Scaled to Window Center
-        displayEngine_.render(uiState_, song_, engine_);
+        displayEngine_.render(uiState_, song_, engine_, inputMap_);
         const uint32_t* srcArgb = displayEngine_.getArgbBuffer();
 
         int canvasY = TOP_BAR_H;
@@ -495,7 +494,7 @@ private:
         drawHLine(0, TOP_BAR_H - 1, winWidth_, COL_BAR_BORDER);
 
         static const char* viewLabels[] = {
-            "F1:SONG", "F2:CHAIN", "F3:PHRASE", "F4:TABLE", "F5:INST", "F6:SYNTH", "F7:PROJ"
+            "F1:SONG", "F2:CHAIN", "F3:PHRASE", "F4:TABLE", "F5:INST", "F6:SYNTH", "F7:PROJ", "F8:SETT"
         };
 
         const int tabW = winWidth_ / VIEW_COUNT;
@@ -593,6 +592,7 @@ private:
     Song song_{};
     UIState uiState_{};
     DisplayEngine displayEngine_{};
+    InputMap inputMap_{};
 
     Win32AudioDevice audioDevice_{};
     Win32Gamepad gamepad_{};
