@@ -24,6 +24,51 @@ enum TrackerView : uint8_t {
 };
 
 // ============================================================================
+// 2D SCREEN NAVIGATION MAP
+// 3x3 Spatial Grid:
+// Row 0 (Meta):       [0,0] PROJ       [1,0] SETT
+// Row 1 (Sequencer): [0,1] SONG <---> [1,1] CHAIN <---> [2,1] PHRASE
+// Row 2 (Sound):     [0,2] INST <---> [1,2] SYNTH <---> [2,2] TABLE
+// ============================================================================
+struct ScreenCoord {
+    int8_t x{0};
+    int8_t y{0};
+
+    constexpr bool operator==(const ScreenCoord& o) const noexcept {
+        return x == o.x && y == o.y;
+    }
+};
+
+constexpr ScreenCoord getScreenCoord(TrackerView v) noexcept {
+    switch (v) {
+        case VIEW_PROJECT:    return {0, 0};
+        case VIEW_SETTINGS:   return {1, 0};
+        case VIEW_SONG:       return {0, 1};
+        case VIEW_CHAIN:      return {1, 1};
+        case VIEW_PHRASE:     return {2, 1};
+        case VIEW_INSTRUMENT: return {0, 2};
+        case VIEW_SYNTH:      return {1, 2};
+        case VIEW_TABLE:      return {2, 2};
+        default:              return {0, 1};
+    }
+}
+
+constexpr TrackerView getViewAtCoord(int x, int y) noexcept {
+    if (y <= 0) {
+        if (x <= 0) return VIEW_PROJECT;
+        return VIEW_SETTINGS; // x >= 1
+    } else if (y == 1) {
+        if (x <= 0) return VIEW_SONG;
+        if (x == 1) return VIEW_CHAIN;
+        return VIEW_PHRASE;   // x >= 2
+    } else { // y >= 2
+        if (x <= 0) return VIEW_INSTRUMENT;
+        if (x == 1) return VIEW_SYNTH;
+        return VIEW_TABLE;    // x >= 2
+    }
+}
+
+// ============================================================================
 // UI STATE MACHINE
 // Manages cursor, navigation hierarchy, editing buffers, and parameter focus
 // ============================================================================
@@ -65,6 +110,77 @@ public:
         is_remapping = false;
         remap_action_index = 0;
         settings_scroll_row = 0;
+        nav_hud_timer = 0;
+        is_nav_mod_held = false;
+    }
+
+    // --- 2D SPATIAL NAVIGATION (LSDj / M8 / PicoTracker Style) ---
+    void navigate2D(int dx, int dy, const Song& song) {
+        ScreenCoord cur = getScreenCoord(current_view);
+        int targetX = cur.x + dx;
+        int targetY = cur.y + dy;
+
+        // Prevent moving up into non-existent grid slot (2, 0) from PHRASE (2, 1)
+        if (cur.x == 2 && targetY == 0) {
+            targetY = 1;
+        }
+
+        // Grid Boundaries & Clamping
+        targetY = std::clamp(targetY, 0, 2);
+
+        // Row-specific X clamping (Row 0 has PROJ(0) and SETT(1), Rows 1 & 2 have 3 columns)
+        if (targetY == 0) {
+            targetX = std::clamp(targetX, 0, 1);
+        } else {
+            targetX = std::clamp(targetX, 0, 2);
+        }
+
+        TrackerView nextView = getViewAtCoord(targetX, targetY);
+        if (nextView == current_view) return;
+
+        // Contextual Linking when moving to deeper views
+        if (nextView == VIEW_CHAIN && current_view == VIEW_SONG) {
+            uint8_t chain_id = song.rows[cursor_row].chain_ids[active_track];
+            if (chain_id < TOTAL_CHAINS) {
+                selected_chain_id = chain_id;
+            }
+        } else if (nextView == VIEW_PHRASE && current_view == VIEW_CHAIN) {
+            const Chain& chain = song.chains[selected_chain_id < TOTAL_CHAINS ? selected_chain_id : 0];
+            uint8_t phrase_id = chain.steps[cursor_row < 16 ? cursor_row : 0].phrase_id;
+            if (phrase_id < TOTAL_PHRASES) {
+                selected_phrase_id = phrase_id;
+            }
+        } else if (nextView == VIEW_INSTRUMENT && current_view == VIEW_PHRASE) {
+            const Phrase& ph = song.phrases[selected_phrase_id < TOTAL_PHRASES ? selected_phrase_id : 0];
+            uint8_t inst_id = ph.steps[cursor_row < 16 ? cursor_row : 0].instrument;
+            if (inst_id < TOTAL_INSTRUMENTS) {
+                selected_instrument_id = inst_id;
+            }
+        } else if (nextView == VIEW_TABLE) {
+            if (current_view == VIEW_PHRASE) {
+                const Phrase& ph = song.phrases[selected_phrase_id < TOTAL_PHRASES ? selected_phrase_id : 0];
+                uint8_t inst_id = ph.steps[cursor_row < 16 ? cursor_row : 0].instrument;
+                if (inst_id < TOTAL_INSTRUMENTS) {
+                    selected_instrument_id = inst_id;
+                }
+            }
+            const Instrument& inst = song.instruments[selected_instrument_id < TOTAL_INSTRUMENTS ? selected_instrument_id : 0];
+            if (inst.table_id < TOTAL_TABLES) {
+                selected_table_id = inst.table_id;
+            }
+        }
+
+        previous_view = current_view;
+        current_view = nextView;
+        cursor_row = 0;
+        cursor_col = 0;
+        nav_hud_timer = 60; // 1 second HUD overlay on 60 FPS
+    }
+
+    void tickNavHUD() noexcept {
+        if (nav_hud_timer > 0) {
+            --nav_hud_timer;
+        }
     }
 
     // --- NAVIGATION HIERARCHY ---
@@ -588,6 +704,9 @@ public:
     bool is_remapping{false};
     int  remap_action_index{0};
     int  settings_scroll_row{0};
+
+    uint8_t nav_hud_timer{0};
+    bool    is_nav_mod_held{false};
 };
 
 } // namespace toad
