@@ -3,6 +3,7 @@
 #include "toad/types.h"
 #include "toad/engine.h"
 #include "toad/ui_state.h"
+#include "toad/keymap.h"
 #include <cstdint>
 #include <cstddef>
 #include <cstring>
@@ -248,7 +249,7 @@ public:
 
         // View Name
         static const char* viewNames[] = {
-            "SONG", "CHAIN", "PHRASE", "TABLE", "INST", "SYNTH", "PROJ"
+            "SONG", "CHAIN", "PHRASE", "TABLE", "INST", "SYNTH", "PROJ", "SETT"
         };
         const char* vName = (ui.current_view < VIEW_COUNT) ? viewNames[ui.current_view] : "VIEW";
         drawString(4, 3, vName, Colors::TEXT_ACCENT);
@@ -571,8 +572,81 @@ public:
         }
     }
 
-    // --- MAIN RENDER ENTRY POINT ---
-    void render(const UIState& ui, const Song& song, const Engine& engine) {
+    // --- SETTINGS VIEW RENDERER ---
+    void renderSettingsView(const UIState& ui, const InputMap& keyMap) {
+        // Section Header Row
+        drawString(8, 16, "ACTION", Colors::TEXT_DIM);
+        drawString(110, 16, "KEY", Colors::TEXT_DIM);
+        drawString(170, 16, "PAD", Colors::TEXT_DIM);
+        drawHLine(6, 24, SCREEN_WIDTH - 12, Colors::GRID_LINE);
+
+        constexpr int maxVisibleRows = 8;
+        int currentIdx = std::clamp(ui.cursor_row, 0, static_cast<int>(TOTAL_CUSTOM_ACTIONS - 1));
+        int startIdx = 0;
+        if (currentIdx >= maxVisibleRows) {
+            startIdx = currentIdx - maxVisibleRows + 1;
+        }
+
+        const auto& bindings = keyMap.getBindings();
+        for (int r = 0; r < maxVisibleRows; ++r) {
+            int actionIdx = startIdx + r;
+            if (actionIdx >= static_cast<int>(TOTAL_CUSTOM_ACTIONS)) break;
+
+            int y = 27 + r * 10;
+            bool isCursor = (actionIdx == currentIdx);
+            const auto& binding = bindings[actionIdx];
+
+            if (isCursor) {
+                if (ui.is_remapping) {
+                    fillRect(6, y - 1, SCREEN_WIDTH - 12, 9, Colors::TEXT_ALERT);
+                    drawString(8, y, binding.label, Colors::CURSOR_TEXT, Colors::TEXT_ALERT);
+                    drawString(100, y, "> PRESS NEW KEY <", Colors::CURSOR_TEXT, Colors::TEXT_ALERT);
+                } else {
+                    fillRect(6, y - 1, SCREEN_WIDTH - 12, 9, Colors::CURSOR_BG);
+                    drawString(8, y, binding.label, Colors::CURSOR_TEXT, Colors::CURSOR_BG);
+                    drawString(110, y, formatKeyName(binding.primary_key), Colors::CURSOR_TEXT, Colors::CURSOR_BG);
+                    drawString(170, y, formatGamepadName(binding.gamepad_mask), Colors::CURSOR_TEXT, Colors::CURSOR_BG);
+                }
+            } else {
+                drawString(8, y, binding.label, Colors::TEXT_BRIGHT);
+                drawString(110, y, formatKeyName(binding.primary_key), Colors::TEXT_ACCENT);
+                drawString(170, y, formatGamepadName(binding.gamepad_mask), Colors::TEXT_WARN);
+            }
+        }
+
+        char counterBuf[16];
+        std::snprintf(counterBuf, sizeof(counterBuf), "[%02d/18]", currentIdx + 1);
+        drawString(195, 108, counterBuf, Colors::TEXT_DIM);
+        drawHLine(6, 117, SCREEN_WIDTH - 12, Colors::GRID_LINE);
+
+        // Virtual Keyboard Quick Reference
+        drawString(8, 121, "--- VIRTUAL PIANO KEYBOARD ---", Colors::TEXT_ACCENT);
+        drawString(8, 132, "      2 3   5 6 7   9 0   =", Colors::TEXT_WARN);
+        drawString(8, 142, "KEYS: Q W E R T Y U I O P [ ]", Colors::TEXT_BRIGHT);
+        drawString(8, 152, "NOTE: C D E F G A B C D E F G", Colors::TEXT_DIM);
+
+        char octInfo[40];
+        std::snprintf(octInfo, sizeof(octInfo), "OCTAVE: [,] DN  [.] UP (C-%d)", 4 + ui.octave_offset);
+        drawString(8, 165, octInfo, Colors::TEXT_BRIGHT);
+
+        const char* pName = "M8.RUN";
+        switch (keyMap.getActivePreset()) {
+            case PRESET_M8_RUN:  pName = "M8.RUN"; break;
+            case PRESET_DESKTOP: pName = "DESKTOP"; break;
+            case PRESET_WASD:    pName = "WASD"; break;
+            case PRESET_VIM:     pName = "VIM"; break;
+            default: break;
+        }
+        char preBuf[40];
+        std::snprintf(preBuf, sizeof(preBuf), "PRESET [%s]: 1..4 TO CHG", pName);
+        drawString(8, 177, preBuf, Colors::TEXT_ACCENT);
+
+        drawString(8, 189, "ENTER:REMAP ROW  ESC:CANCEL", Colors::TEXT_WARN);
+        drawString(8, 201, "PAGE L/R:NAVIGATE VIEWS", Colors::TEXT_DIM);
+    }
+
+    // --- MAIN RENDER ENTRY POINTS ---
+    void render(const UIState& ui, const Song& song, const Engine& engine, const InputMap& keyMap) {
         clear(Colors::BG_OBSIDIAN);
         renderHeader(ui, song, engine);
 
@@ -593,12 +667,20 @@ public:
             case VIEW_INSTRUMENT:
                 renderSynthView(ui, song);
                 break;
+            case VIEW_SETTINGS:
+                renderSettingsView(ui, keyMap);
+                break;
             default:
                 renderSongView(ui, song, engine);
                 break;
         }
 
         renderFooter(ui);
+    }
+
+    void render(const UIState& ui, const Song& song, const Engine& engine) {
+        static const InputMap defaultMap{};
+        render(ui, song, engine, defaultMap);
     }
 
     // --- STEAM DECK 1280x800 COMPOSITOR ---
