@@ -37,7 +37,7 @@ namespace toad {
 constexpr int CANVAS_NATIVE_W = DisplayEngine::SCREEN_WIDTH;  // 240
 constexpr int CANVAS_NATIVE_H = DisplayEngine::SCREEN_HEIGHT; // 240
 
-constexpr int TOP_BAR_H    = 28;
+constexpr int TOP_BAR_H    = 0;
 constexpr int BOTTOM_BAR_H = 28;
 
 // Desktop Color Palette
@@ -281,6 +281,23 @@ private:
             return;
         }
 
+        // --- 0. 2D SCREEN NAVIGATION MAP (Shift + Arrows) ---
+        if (shift) {
+            if (vk == VK_UP) {
+                uiState_.navigate2D(0, -1, song_);
+                return;
+            } else if (vk == VK_DOWN) {
+                uiState_.navigate2D(0, 1, song_);
+                return;
+            } else if (vk == VK_LEFT) {
+                uiState_.navigate2D(-1, 0, song_);
+                return;
+            } else if (vk == VK_RIGHT) {
+                uiState_.navigate2D(1, 0, song_);
+                return;
+            }
+        }
+
         // --- 1. SETTINGS VIEW LOGIC & REMAPPING ---
         if (uiState_.current_view == VIEW_SETTINGS) {
             if (uiState_.is_remapping) {
@@ -421,15 +438,9 @@ private:
     }
 
     void handleMouseDown(int x, int y) {
-        // Tab Bar Clicks (Y: 0..TOP_BAR_H)
-        if (y < TOP_BAR_H) {
-            const int tabW = winWidth_ / VIEW_COUNT;
-            int tabIdx = x / tabW;
-            if (tabIdx >= 0 && tabIdx < VIEW_COUNT) {
-                uiState_.current_view = static_cast<TrackerView>(tabIdx);
-                uiState_.cursor_row = 0;
-                uiState_.cursor_col = 0;
-            }
+        // Mini-Map Click (Top-Right Corner: X >= 210 * scale, Y <= 14 * scale)
+        if (x >= 210 * scale_ && x <= winWidth_ && y <= 14 * scale_) {
+            uiState_.nav_hud_timer = (uiState_.nav_hud_timer > 0) ? 0 : 120; // Toggle HUD
         }
     }
 
@@ -454,7 +465,15 @@ private:
     }
 
     void tick() {
+        uiState_.tickNavHUD();
+
         gamepad_.poll([this](const InputEvent& ev) {
+            if (ev.modifier_view && ev.pressed) {
+                if (ev.input == INPUT_UP)    { uiState_.navigate2D(0, -1, song_); return; }
+                if (ev.input == INPUT_DOWN)  { uiState_.navigate2D(0,  1, song_); return; }
+                if (ev.input == INPUT_LEFT)  { uiState_.navigate2D(-1, 0, song_); return; }
+                if (ev.input == INPUT_RIGHT) { uiState_.navigate2D( 1, 0, song_); return; }
+            }
             dispatchInput(ev);
         });
 
@@ -464,14 +483,11 @@ private:
     }
 
     void renderAll() {
-        // 1. Render Top Desktop View Tab Bar
-        renderTopBar();
-
-        // 2. Render Core 240x240 Tracker Canvas Scaled to Window Center
+        // 1. Render Core 240x240 Tracker Canvas Scaled to Window (Starts at Y=0)
         displayEngine_.render(uiState_, song_, engine_, inputMap_);
         const uint32_t* srcArgb = displayEngine_.getArgbBuffer();
 
-        int canvasY = TOP_BAR_H;
+        int canvasY = 0;
         for (int y = 0; y < CANVAS_NATIVE_H; ++y) {
             int dstYBase = canvasY + y * scale_;
             for (int sy = 0; sy < scale_; ++sy) {
@@ -485,31 +501,8 @@ private:
             }
         }
 
-        // 3. Render Bottom Desktop Status Bar
+        // 2. Render Bottom Desktop Status Bar
         renderBottomBar();
-    }
-
-    void renderTopBar() {
-        drawRect(0, 0, winWidth_, TOP_BAR_H, COL_BAR_BG);
-        drawHLine(0, TOP_BAR_H - 1, winWidth_, COL_BAR_BORDER);
-
-        static const char* viewLabels[] = {
-            "F1:SONG", "F2:CHAIN", "F3:PHRASE", "F4:TABLE", "F5:INST", "F6:SYNTH", "F7:PROJ", "F8:SETT"
-        };
-
-        const int tabW = winWidth_ / VIEW_COUNT;
-        for (int i = 0; i < VIEW_COUNT; ++i) {
-            int tx = i * tabW;
-            bool isActive = (uiState_.current_view == i);
-
-            if (isActive) {
-                drawRect(tx + 2, 2, tabW - 4, TOP_BAR_H - 4, COL_TAB_ACTIVE);
-                drawText(tx + 8, 8, viewLabels[i], COL_TAB_TEXT_ACT);
-            } else {
-                drawHollowRect(tx + 2, 2, tabW - 4, TOP_BAR_H - 4, COL_TAB_INACTIVE);
-                drawText(tx + 8, 8, viewLabels[i], COL_TAB_TEXT_INAC);
-            }
-        }
     }
 
     void renderBottomBar() {

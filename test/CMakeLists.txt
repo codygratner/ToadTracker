@@ -13,6 +13,7 @@ add_executable(toad_core_tests
     test_interchange.cpp
     test_emulators.cpp
     test_settings.cpp
+    test_navigation_map.cpp
 )
 
 target_include_directories(toad_core_tests PRIVATE

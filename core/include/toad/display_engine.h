@@ -241,6 +241,101 @@ public:
         drawString(x, y, str, color, bgColor);
     }
 
+    void renderMiniMap(const UIState& ui) {
+        constexpr int mapStartX = 214;
+        constexpr int mapStartY = 1;
+        constexpr int cellW = 6;
+        constexpr int cellH = 3;
+        constexpr int gapX = 2;
+        constexpr int gapY = 1;
+
+        ScreenCoord cur = getScreenCoord(ui.current_view);
+
+        // Draw connecting pathway lines (1px subtle grid lines)
+        drawHLine(mapStartX + cellW, mapStartY + 1, gapX, Colors::GRID_LINE);
+        drawHLine(mapStartX + cellW, mapStartY + (cellH + gapY) + 1, gapX, Colors::GRID_LINE);
+        drawHLine(mapStartX + (cellW + gapX) + cellW, mapStartY + (cellH + gapY) + 1, gapX, Colors::GRID_LINE);
+        drawHLine(mapStartX + cellW, mapStartY + 2 * (cellH + gapY) + 1, gapX, Colors::GRID_LINE);
+        drawHLine(mapStartX + (cellW + gapX) + cellW, mapStartY + 2 * (cellH + gapY) + 1, gapX, Colors::GRID_LINE);
+
+        drawVLine(mapStartX + 2, mapStartY + cellH, gapY, Colors::GRID_LINE);
+        drawVLine(mapStartX + 2, mapStartY + (cellH + gapY) + cellH, gapY, Colors::GRID_LINE);
+        drawVLine(mapStartX + (cellW + gapX) + 2, mapStartY + cellH, gapY, Colors::GRID_LINE);
+        drawVLine(mapStartX + (cellW + gapX) + 2, mapStartY + (cellH + gapY) + cellH, gapY, Colors::GRID_LINE);
+        drawVLine(mapStartX + 2 * (cellW + gapX) + 2, mapStartY + (cellH + gapY) + cellH, gapY, Colors::GRID_LINE);
+
+        // Render 3x3 Nodes
+        for (int r = 0; r < 3; ++r) {
+            for (int c = 0; c < 3; ++c) {
+                // (2, 0) is empty slot
+                if (r == 0 && c == 2) continue;
+
+                int cx = mapStartX + c * (cellW + gapX);
+                int cy = mapStartY + r * (cellH + gapY);
+
+                bool isActive = (cur.x == c && cur.y == r);
+                if (isActive) {
+                    fillRect(cx, cy, cellW, cellH, Colors::TEXT_ACCENT);
+                } else {
+                    fillRect(cx, cy, cellW, cellH, Colors::PLAYHEAD_BAR);
+                    drawPixel(cx, cy, Colors::TEXT_DIM);
+                    drawPixel(cx + cellW - 1, cy, Colors::TEXT_DIM);
+                    drawPixel(cx, cy + cellH - 1, Colors::TEXT_DIM);
+                    drawPixel(cx + cellW - 1, cy + cellH - 1, Colors::TEXT_DIM);
+                }
+            }
+        }
+    }
+
+    void renderNavigationHUD(const UIState& ui) {
+        constexpr int hudW = 120;
+        constexpr int hudH = 46;
+        constexpr int hudX = (SCREEN_WIDTH - hudW) / 2; // 60
+        constexpr int hudY = 20;
+
+        // Background & Border
+        fillRect(hudX, hudY, hudW, hudH, Colors::BG_OBSIDIAN);
+        drawHLine(hudX, hudY, hudW, Colors::TEXT_ACCENT);
+        drawHLine(hudX, hudY + hudH - 1, hudW, Colors::TEXT_ACCENT);
+        drawVLine(hudX, hudY, hudH, Colors::TEXT_ACCENT);
+        drawVLine(hudX + hudW - 1, hudY, hudH, Colors::TEXT_ACCENT);
+
+        // Inner header line
+        drawString(hudX + 16, hudY + 3, "- SCREEN MAP -", Colors::TEXT_WARN);
+
+        static const char* gridLabels[3][3] = {
+            { "PRJ", "SET", "   " },
+            { "SNG", "CHN", "PHR" },
+            { "INS", "SYN", "TAB" }
+        };
+
+        ScreenCoord cur = getScreenCoord(ui.current_view);
+
+        for (int r = 0; r < 3; ++r) {
+            for (int c = 0; c < 3; ++c) {
+                if (r == 0 && c == 2) continue;
+
+                int bx = hudX + 8 + c * 38;
+                int by = hudY + 13 + r * 9;
+
+                bool isActive = (cur.x == c && cur.y == r);
+                if (isActive) {
+                    fillRect(bx - 2, by - 1, 20, 8, Colors::CURSOR_BG);
+                    drawString(bx, by, gridLabels[r][c], Colors::CURSOR_TEXT, Colors::CURSOR_BG);
+                } else {
+                    drawString(bx, by, gridLabels[r][c], Colors::TEXT_DIM);
+                }
+
+                // Draw horizontal connector between columns
+                if (c < 2 && !(r == 0 && c == 1)) {
+                    drawHLine(bx + 18, by + 2, 18, Colors::GRID_LINE);
+                }
+            }
+        }
+
+        drawString(hudX + 8, hudY + hudH - 8, "SHIFT+ARROWS TO NAV", Colors::TEXT_ACCENT);
+    }
+
     // --- HIGH-LEVEL VIEW RENDERERS ---
     void renderHeader(const UIState& ui, const Song& song, const Engine& engine) {
         // Top 14 px header
@@ -260,7 +355,10 @@ public:
                       engine.isPlaying() ? ">" : "[]",
                       static_cast<unsigned int>(engine.getSongRow()),
                       static_cast<int>(song.bpm));
-        drawString(110, 3, status, engine.isPlaying() ? Colors::TEXT_BRIGHT : Colors::TEXT_WARN);
+        drawString(55, 3, status, engine.isPlaying() ? Colors::TEXT_BRIGHT : Colors::TEXT_WARN);
+
+        // 3x3 Screen Navigation Mini-Map
+        renderMiniMap(ui);
     }
 
     void renderFooter(const UIState& ui) {
@@ -676,6 +774,11 @@ public:
         }
 
         renderFooter(ui);
+
+        // Render 2D Navigation HUD overlay during transitions or when Nav modifier is held
+        if (ui.nav_hud_timer > 0 || ui.is_nav_mod_held) {
+            renderNavigationHUD(ui);
+        }
     }
 
     void render(const UIState& ui, const Song& song, const Engine& engine) {
