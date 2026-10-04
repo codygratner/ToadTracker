@@ -10,6 +10,7 @@ add_executable(toad_core_tests
     test_ui.cpp
     test_hal.cpp
     test_hardware_hal.cpp
+    test_interchange.cpp
 )
 
 target_include_directories(toad_core_tests PRIVATE

@@ -1,5 +1,8 @@
 add_library(toad_core STATIC
     src/engine.cpp
+    src/serializer.cpp
+    src/auto_sampler.cpp
+    src/format_bridge.cpp
 )
 
 target_include_directories(toad_core PUBLIC
