@@ -3,6 +3,7 @@ add_executable(toad_core_tests
     test_fast_math.cpp
     test_tables.cpp
     test_scale_pool.cpp
+    test_sequencer.cpp
 )
 
 target_link_libraries(toad_core_tests PRIVATE
