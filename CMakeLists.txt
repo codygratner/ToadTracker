@@ -77,4 +77,11 @@ if(BUILD_JUCE_TARGET)
 endif()
 
 add_subdirectory(apps/cli)
+
+if(WIN32)
+    add_subdirectory(apps/tbd16_emulator)
+    add_subdirectory(apps/steamdeck_runner)
+endif()
+
 add_subdirectory(test)
+

@@ -372,6 +372,32 @@ public:
         }
     }
 
+    static inline const char* getCommandName(TrackerCommand cmd) {
+        switch (cmd) {
+            case CMD_NONE: return "--";
+            case CMD_ARPG: return "ARP";
+            case CMD_FCUT: return "CUT";
+            case CMD_FRES: return "RES";
+            case CMD_FOLD: return "FLD";
+            case CMD_PWM_: return "PWM";
+            case CMD_DISP: return "DSP";
+            case CMD_WPOS: return "WPS";
+            case CMD_WAMT: return "WAM";
+            case CMD_FDRV: return "DRV";
+            case CMD_SMP1: return "SMP";
+            case CMD_SLOP: return "SLP";
+            case CMD_ATBL: return "ATB";
+            case CMD_HOP_: return "HOP";
+            case CMD_MCC1: return "MC1";
+            case CMD_MCC2: return "MC2";
+            case CMD_MCC3: return "MC3";
+            case CMD_MCC4: return "MC4";
+            case CMD_MPCH: return "PCH";
+            case CMD_PBND: return "BND";
+            default:       return "??";
+        }
+    }
+
     void renderPhraseView(const UIState& ui, const Song& song, const Engine& engine) {
         int startY = 16;
         int rowHeight = 11;
@@ -414,16 +440,12 @@ public:
             drawHexByte(74, y + 2, step.volume, cur2 ? Colors::CURSOR_TEXT : Colors::TEXT_BRIGHT, cur2 ? Colors::CURSOR_BG : 0);
 
             // FX Columns (Col 3..8)
-            static const char* cmdNames[] = {
-                "--", "VOL", "CUT", "RES", "FLD", "PWM", "DSP", "WPS", "WAM", "DRV", "ATB", "HOP"
-            };
-
             for (int f = 0; f < 3; ++f) {
                 int fxX = 98 + f * 44;
                 bool curCmd = (s == ui.cursor_row && ui.cursor_col == (3 + f * 2));
                 bool curVal = (s == ui.cursor_row && ui.cursor_col == (4 + f * 2));
 
-                const char* cName = (step.fx[f].cmd <= CMD_HOP_) ? cmdNames[step.fx[f].cmd] : "??";
+                const char* cName = getCommandName(step.fx[f].cmd);
                 drawString(fxX, y + 2, cName, curCmd ? Colors::CURSOR_TEXT : Colors::TEXT_ACCENT, curCmd ? Colors::CURSOR_BG : 0);
                 drawHexByte(fxX + 18, y + 2, step.fx[f].val, curVal ? Colors::CURSOR_TEXT : Colors::TEXT_BRIGHT, curVal ? Colors::CURSOR_BG : 0);
             }
@@ -464,11 +486,8 @@ public:
             drawHexByte(60, y + 2, row.volume, cur1 ? Colors::CURSOR_TEXT : Colors::TEXT_BRIGHT, cur1 ? Colors::CURSOR_BG : 0);
 
             // FX1 & FX2
-            static const char* cmdNames[] = {
-                "--", "VOL", "CUT", "RES", "FLD", "PWM", "DSP", "WPS", "WAM", "DRV", "ATB", "HOP"
-            };
-            const char* c1 = (row.cmd1 <= CMD_HOP_) ? cmdNames[row.cmd1] : "??";
-            const char* c2 = (row.cmd2 <= CMD_HOP_) ? cmdNames[row.cmd2] : "??";
+            const char* c1 = getCommandName(row.cmd1);
+            const char* c2 = getCommandName(row.cmd2);
 
             bool curC1 = (r == ui.cursor_row && ui.cursor_col == 2);
             bool curV1 = (r == ui.cursor_row && ui.cursor_col == 3);
