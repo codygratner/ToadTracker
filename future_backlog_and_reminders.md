@@ -1,5 +1,18 @@
 # Future Backlog & Reminders
 
+> [!WARNING]
+> ## 🚨 CRITICAL HARDWARE SPEC CORRECTION: OFFICIAL DADAMACHINES TBD-16
+> The previous `TRACKER_SPEC.md` and `tbd16_emulator` assumed a fictional 240x240 LCD. The **OFFICIAL** production hardware specs from dadamachines / CTAG TBD are:
+> - **Display:** **2.4-inch OLED Display with 128 × 64 pixels** (NOT 240x240 LCD!).
+> - **Encoders:** **4 high-quality endless rotary push-encoders** (KNOB 1–4) + dedicated volume wheel.
+> - **Buttons:** **30 tactile buttons with RGB backlighting** + 19 RGB LEDs + D-Pad (center-left).
+> - **Tri-Core Processors:** **ESP32-P4** (400MHz Audio DSP) + **RP2350** (150MHz UI/Sequencer) + **ESP32-C6** (WiFi / Ableton Link).
+> - **Official Source Repositories:**
+>   - [`dadamachines/ctag-tbd`](https://github.com/dadamachines/ctag-tbd): Primary TBD-16 firmware & adaptations repo.
+>   - [`dadamachines/dada-tbd-app-template`](https://github.com/dadamachines/dada-tbd-app-template): Official app template for RP2350 UI apps.
+>   - [`ctag-fh-kiel/ctag-tbd`](https://github.com/ctag-fh-kiel/ctag-tbd): Upstream core CTAG audio platform (Robert Manzke).
+> - **Action Required when resuming ToadTracker:** Refactor `DisplayEngine` and `tbd16_emulator` to render for 128x64 OLED instead of 240x240.
+
 This file indexes active roadmap items for the automated task runner (`execute-task`). For complete detailed technical specifications, see [`BACKLOG.md`](BACKLOG.md).
 
 ---
@@ -25,6 +38,11 @@ This file indexes active roadmap items for the automated task runner (`execute-t
 - **Status:** Ready
 - **Scope:** `core`, `apps/desktop`, `apps/tbd16_emulator`, `apps/steamdeck_runner`
 - **Summary:** Make the 2D Navigation Map modal hold-to-view: pops up immediately on Left-Shift / Gamepad Left Trigger press, navigates with D-Pad/Arrows, and drops instantly on release with zero delay (eliminating the lingering 60-frame countdown).
+
+### Item 5: BACKLOG-05 - TBD-16 Step-Button Encoder Parameter Locks (P-Locks) & Klang Engine Telemetry
+- **Status:** Ready
+- **Scope:** `core`, `apps/tbd16_emulator`, `hal`
+- **Summary:** Implement Elektron-style parameter locks: holding a step button (`00`–`0F`) and turning any of the 4 encoders immediately locks that parameter value to that step. The step LED indicates locked state in amber, and writes the command/hex value into the tracker pattern columns (e.g. `12 7F`). On the TBD-16 hardware, the RP2350 transmits a 4-byte `StepLockPacket` via 20MHz SPI DMA directly to the ESP32-P4 audio engine.
 
 ---
 

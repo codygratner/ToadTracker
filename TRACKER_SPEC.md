@@ -54,13 +54,20 @@ ToadTracker is an ergonomic, open-source, multi-platform step tracker combining 
 
 \### 2.1 Hardware Specification (dadamachines TBD-16)
 
+> [!IMPORTANT]
+> **OFFICIAL DADAMACHINES SPECIFICATION (VALIDATED):**
+> - **Display:** 2.4-inch OLED display with **128 × 64 pixels** (verified via official dadamachines hardware docs).
+> - **Official Repositories:** [`dadamachines/ctag-tbd`](https://github.com/dadamachines/ctag-tbd) and [`dadamachines/dada-tbd-app-template`](https://github.com/dadamachines/dada-tbd-app-template).
+> - **Host MCUs:** ESP32-P4 (400MHz Audio DSP) + RP2350 (150MHz UI & Sequencer) + ESP32-C6 (WiFi / Ableton Link).
+> - **Surface Controls:** 30 tactile RGB backlit buttons, 4 endless push-encoders (KNOB 1–4) + dedicated volume wheel, 19 RGB status LEDs, and center-left D-Pad.
+
 \- \*\*Host MCU:\*\* ESP32-P4 / ESP32-S3 (Dual-Core Xtensa/RISC-V with PSRAM).
 
 \- \*\*Core Allocation:\*\* Core 0 (UI, screen rendering, file I/O, USB stack); Core 1 (Audio DMA buffer synthesis, table engine).
 
-\- \*\*Display:\*\* 240×240 ST7789 SPI LCD.
+\- \*\*Display:\*\* 2.4-inch 128×64 OLED Display (ST7789 240x240 LCD was an unvalidated prototype spec).
 
-\- \*\*Surface Controls:\*\* 16 Tactile RGB Step Buttons (driven via RMT/SPI DMA), 4 Push-Rotary Encoders, D-pad, A/B/X/Y tactical switches, Left/Right Screen Page buttons, dedicated illuminated Record button, and Play/Stop transport switches.
+\- \*\*Surface Controls:\*\* 30 Tactile RGB Step & Function Buttons, 4 Push-Rotary Encoders, D-pad, and dedicated volume wheel.
 
 
 
@@ -125,6 +132,15 @@ The tracker core maps all operations to an 8-button minimum controller standard,
 - \*\*Audio Engine:\*\* Native PipeWire low-latency PRO Audio profile or direct ALSA hardware sink delivering sub-5ms buffer latency.
 
 
+
+### 2.5 TBD-16 Step-Button Parameter Locking (P-Locks) & Klang Engine Telemetry
+
+On the dadamachines TBD-16 hardware platform, ToadTracker integrates Elektron-style Parameter Locks (P-Locks) directly with the physical 16-step RGB button grid:
+
+1. **Step-Held Value Injection:** Holding down any of the 16 tactile step buttons (`00`–`0F`) and rotating any of the 4 endless push-encoders instantly locks that specific parameter to that sequencer step.
+2. **Visual Feedback:** The step's RGB LED dynamically shifts to an illuminated Amber/Orange state to indicate active per-step modulation data.
+3. **Pattern Column Mapping:** In the tracker pattern matrix, locked parameter values are automatically encoded as two-digit hexadecimal effect/command bytes (e.g. `12 7F` for Filter Cutoff at maximum, or `24 40` for Wavefolder depth).
+4. **Inter-Core High-Speed SPI Telemetry:** The RP2350 UI processor transmits parameter locks as a packed 4-byte C-struct (`struct StepLockPacket { uint8_t track; uint8_t step; uint8_t paramId; float value; };`) via 20MHz SPI DMA directly to the ESP32-P4 audio engine interrupt, guaranteeing zero-latency sample-accurate modulation.
 
 ---
 
