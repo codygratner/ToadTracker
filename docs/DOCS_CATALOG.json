@@ -1,0 +1,9 @@
+{
+  "catalog": {
+    "SYSTEM_MAP.md": "High-level system architecture and component tree (Apps, Core, HAL, Audio Engine, UI/OLED).",
+    "GLOSSARY.md": "Canonical tracker terminology.",
+    "specs/tracker_core_engine.md": "Comprehensive spec synthesized from TRACKER_SPEC.md",
+    "specs/hardware_hal_tbd16.md": "Hardware spec for dadamachines TBD-16",
+    "specs/desktop_and_embedded_targets.md": "Multi-target deployment spec"
+  }
+}
