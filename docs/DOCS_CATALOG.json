@@ -1,9 +1,98 @@
 {
-  "catalog": {
-    "SYSTEM_MAP.md": "High-level system architecture and component tree (Apps, Core, HAL, Audio Engine, UI/OLED).",
-    "GLOSSARY.md": "Canonical tracker terminology.",
-    "specs/tracker_core_engine.md": "Comprehensive spec synthesized from TRACKER_SPEC.md",
-    "specs/hardware_hal_tbd16.md": "Hardware spec for dadamachines TBD-16",
-    "specs/desktop_and_embedded_targets.md": "Multi-target deployment spec"
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "version": "1.0.0",
+  "title": "ToadTracker Documentation & Knowledge Catalog",
+  "description": "Master index and navigation manifest for ToadTracker documentation, hardware specs, field guides, and ecosystem links.",
+  "catalogs": {
+    "core_architecture": {
+      "description": "High-level architecture, terminology, and system mapping.",
+      "items": [
+        {
+          "path": "docs/SYSTEM_MAP.md",
+          "title": "ToadTracker System Map",
+          "purpose": "Component hierarchy across Core, HAL, Audio Engine, UI/OLED, and target hosts."
+        },
+        {
+          "path": "docs/GLOSSARY.md",
+          "title": "Tracker Terminology & Taxonomy",
+          "purpose": "Definitions of Song, Chain, Phrase, Instrument, Table, P-Lock, HAL, and SPSC FIFOs."
+        },
+        {
+          "path": "BACKLOG.md",
+          "title": "ToadTracker Milestone Backlog",
+          "purpose": "Active engineering work queue, hardware milestones, and firmware roadmap."
+        }
+      ]
+    },
+    "technical_specs": {
+      "description": "Core tracker engine specifications and multi-target hardware HALs.",
+      "items": [
+        {
+          "path": "docs/specs/tracker_core_engine.md",
+          "title": "Tracker Core Engine Specification",
+          "purpose": "Playback loop, table ticks, command columns, parameter locks, and FastTanh saturation."
+        },
+        {
+          "path": "docs/specs/hardware_hal_tbd16.md",
+          "title": "Hardware HAL: dadamachines TBD-16",
+          "purpose": "ESP32-P4 DSP + RP2350B UI/OLED drivers, SPI DMA bus, and encoder mapping."
+        },
+        {
+          "path": "docs/specs/desktop_and_embedded_targets.md",
+          "title": "Multi-Target Deployment Specification",
+          "purpose": "Desktop SDL2, Steam Deck SteamOS, and Raspberry Pi ALSA target harnesses."
+        }
+      ]
+    },
+    "field_guides_and_governance": {
+      "description": "Shared operational field manuals and DSP invariants.",
+      "items": [
+        {
+          "path": "docs/history/audio_dsp_field_guide.md",
+          "title": "Audio DSP Field Guide Pointer",
+          "purpose": "Hard real-time audio thread invariants, zero allocations, and FastMath rules."
+        },
+        {
+          "path": "docs/history/vibe_coding_field_guide.md",
+          "title": "Vibe-Coder's Field Guide Pointer",
+          "purpose": "Multi-agent pair-programming protocols, model tiers, and escalation gates."
+        }
+      ]
+    },
+    "lore_and_worldbuilding": {
+      "description": "In-universe lore chronicles and Mayor Toad mythology.",
+      "items": [
+        {
+          "path": "docs/lore/README.md",
+          "title": "Mayor Toad & Lore Pointer",
+          "purpose": "Chronicles of Mayor Tsathoggua, City Hall, and the great mayoral coup."
+        }
+      ]
+    },
+    "four_pillar_ecosystem": {
+      "description": "The Four Pillars of the Klang Ecosystem.",
+      "items": [
+        {
+          "path": "C:\\Dev\\TheKlangSuite",
+          "title": "The Klang Suite",
+          "purpose": "Polyphonic synthesizers and VST3 plugins."
+        },
+        {
+          "path": "C:\\Dev\\ToadTracker",
+          "title": "ToadTracker Hardware Groovebox",
+          "purpose": "16-step embedded hardware tracker."
+        },
+        {
+          "path": "C:\\Dev\\nkai",
+          "title": "N'kai Sidecar Framework",
+          "purpose": "Asymmetric sidecar framework & triage lab (https://github.com/codygratner/nkai)."
+        },
+        {
+          "path": "C:\\Dev\\Research",
+          "title": "The Klang Research Hub",
+          "purpose": "Centralized cross-project research repository, surveys, and soul harvests (https://github.com/codygratner/TheKlangResearch)."
+        }
+      ]
+    }
   }
 }
